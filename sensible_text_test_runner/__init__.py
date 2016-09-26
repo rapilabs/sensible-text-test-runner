@@ -1,14 +1,24 @@
+import inspect
+import os
 import unittest
-from django.test.runner import DiscoverRunner, DebugSQLTextTestResult
+
+from django.test.runner import DebugSQLTextTestResult, DiscoverRunner
 
 
 class SensibleTextTestResult(unittest.TextTestResult):
+    def get_vi_command(self, test):
+        code_object = inspect.unwrap(getattr(test, test._testMethodName)).__code__
+        return 'vi +{} {}'.format(code_object.co_firstlineno, code_object.co_filename)
+
     def getDescription(self, test):
         doc_first_line = test.shortDescription()
         if self.descriptions and doc_first_line:
             return '\n'.join((str(test), doc_first_line))
         else:
-            return '{}.{}.{}'.format(test.__class__.__module__, test.__class__.__qualname__, test._testMethodName)
+            description = '{}.{}.{}'.format(test.__class__.__module__, test.__class__.__qualname__, test._testMethodName)
+            if os.environ.get('SHOW_VI', False):
+                description += '\n\n' + self.get_vi_command(test)
+            return description
 
 
 class SensibleTextTestRunner(DiscoverRunner):
